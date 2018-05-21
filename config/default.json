@@ -1,0 +1,49 @@
+{
+    "Server": {
+        "address": "127.0.0.1",
+        "port": 9912,
+        "debug": 1
+    },
+
+    "Logger": {
+        "filePolling": 0,
+        "errors": 0,
+        "parsing": 0,
+        "extras": 0
+    },
+
+    "Voice": {
+        "useLocalSynthesizer": 0,
+        "local": {
+            "voices": ["french", "en-scottish", "us-english", "german", "danish", "welsh", "russian"],
+            "defaultVoice": 0,
+            "randomVoice": 0,
+            "randomPitchSpeed": 0,
+            "pitch": 1,
+            "speed": 1
+        },
+        "chrome": {
+            "voices": [],
+            "defaultVoice": 0,
+            "randomVoice": 0,
+            "randomPitchSpeed": 0,
+            "pitch": 1,
+            "speed": 1
+        }
+    },
+
+    "Netjester": {
+        "inputMode": "poll",
+        "inputFile": "twitch.log",
+        "talkWhenIdle": 1,
+        "secondsBetweenResponses": 10,
+        "extras": {
+            "flickr": {
+                "enabled": 0,
+                "storeImages": 0,
+                "pluckSearchTerm": 1,
+                "keepTrying": 0
+            }
+        }
+    }
+}
