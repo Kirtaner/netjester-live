@@ -1,11 +1,13 @@
 module.exports = function(io, config) {
-    let Connected = {};
-    let lastResponse = '';
-    let clientConfig = {
-        "Voice": config.get('Voice'),
-        "Netjester": config.get('Netjester'),
-        "Debug": config.get('Server.debug')
-    };
+    let Connected = {},
+        lastResponse = '',
+        clientConfig = {
+            "Voice": config.get('Voice'),
+            "Netjester": config.get('Netjester'),
+            "Debug": config.get('Server.debug')
+        };
+
+    // espeak, festival, flite, freetts, mimic
 
     Netjester = {
         initializeClient(client) {
@@ -20,6 +22,10 @@ module.exports = function(io, config) {
 
         pollChatResponse() {
 
+        },
+
+        systemSpeechFallback() {
+            
         }
     };
 
@@ -40,5 +46,7 @@ module.exports = function(io, config) {
             // give a bit of thought to voice queueing and rate limiting
         });
 
+        // Use node server and local system processes if wanted/needed
+        client.on('fallbackToSystemSpeech', Netjester.systemSpeechFallback);
     });
 };

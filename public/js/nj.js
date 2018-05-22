@@ -5,7 +5,8 @@ let socket = io(),
         audioDisabled: false,
         speakingTimer: null,
         isSpeaking: false,
-        availableVoices: null
+        availableVoices: null,
+        usingLocalSynthesiser: false
     };
 
 socket.on('connected', function(msg) {
@@ -17,7 +18,13 @@ Netjester.init = function(msg) {
 
     // This is a full reload so set up audio devices and do DOMshit
     if(!connected) {
-        Netjester.initializeSpeech();
+        // fuck it we'll send messages to the server and use native TTS in the meantime
+        if(config.Voice.useLocalSynthesiser) {
+            Netjester.initializeSystemSpeech();
+        } else {
+            Netjester.initializeSpeech();
+        }
+
         Netjester.initializeAudioInput();
 
         // Reveal the thing
@@ -32,19 +39,24 @@ Netjester.init = function(msg) {
     }
 }
 
+Netjester.initializeSystemSpeech = function() {
+    Netjester.log('System Speech', 'Using system speech with daemon "' + config.Voice.local.daemon + '"', 1);
+    this.availableVoices = config.Voice.local.voices;
+    this.usingLocalSynthesiser = true;
+}
+
 Netjester.initializeSpeech = function() {
-    let voices = speechSynthesis.getVoices();
+    let voices = window.speechSynthesis.getVoices();
 
     if (!Array.isArray(voices) || !voices.length) {
-        Netjester.log('SpeechSynthesis', 'Waiting for voices, hooking onvoiceschanged...');
+        Netjester.log('SpeechSynthesis', 'Waiting for voices...', 1);
 
-        speechSynthesis.onvoiceschanged = function() {
+        window.speechSynthesis.onvoiceschanged = function(e) {
             Netjester.initializeSpeech();
         }
     } else {
-        Netjester.log('SpeechSynthesis', 'Loaded voices');
+        Netjester.log('SpeechSynthesis', 'Loaded ' + voices.length + 'voices', 1);
 
-        speechSynthesis.onvoiceschanged = null;
         this.availableVoices = voices;
     }
 }
@@ -126,23 +138,20 @@ Netjester.getAverageVolume = function(audio) {
 }
 
 Netjester.saySomething = function(input) {
-    let msg = new SpeechSynthesisUtterance(input),
-        params = config.Voice.chrome;
+    if (this.usingLocalSynthesiser) {
+        Netjester.systemSpeak(input);
+    } else {
+        Netjester.speak(input);
+    }
+}
 
-    // msg.voice = this.availableVoices[1];
-    msg.lang = 'en-US';
-    // msg.voiceURI = 'native';
-    msg.volume = 1; // 0 to 1
-    msg.rate = params.speed; // 0.1 to 10
-    msg.pitch = params.pitch; //0 to 2
-    // msg.text = input;
-
-    Netjester.speak(msg);
+Netjester.systemSpeak = function(input) {
+    socket.emit('speak', msg);
 }
 
 // Chrome has a weird quirk where every 15 seconds of nonstop speech the TTS engine halts without warnings or events firing
 // Behold this hackish workaround - constant timed pause/resumes that are microseconds long
-Netjester.speak = function(msg) {
+Netjester.speak = function(input) {
     let speechTimer = this.speakingTimer;
     let isSpeaking = this.isSpeaking;
     let fragment = 1;
@@ -155,13 +164,24 @@ Netjester.speak = function(msg) {
             clearInterval(speechTimer);
         }
 
-        msg.onboundary = function(e) {
-            Netjester.log('SpeechSynthesisUtterance', 'word boundary at ' + e.elapsedTime);
-            if (e.elapsedTime > 13000 * fragment) {
-                speechSynthesis.pause();
-                fragment++;
-            }
-        };
+        let msg = new SpeechSynthesisUtterance(input),
+        params = config.Voice.chrome;
+
+        // msg.voice = this.availableVoices[1];
+        msg.lang = 'en-US';
+        // msg.voiceURI = 'native';
+        msg.volume = 1; // 0 to 1
+        msg.rate = params.speed; // 0.1 to 10
+        msg.pitch = params.pitch; //0 to 2
+        // msg.text = input;
+
+        // msg.onboundary = function(e) {
+        //     Netjester.log('SpeechSynthesisUtterance', 'word boundary at ' + e.elapsedTime);
+        //     if (e.elapsedTime > 13000 * fragment) {
+        //         speechSynthesis.pause();
+        //         fragment++;
+        //     }
+        // };
     
         msg.onerror = function(e) {
             Netjester.log('SpeechSynthesisUtterance', e.error);
