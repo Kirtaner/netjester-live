@@ -3,9 +3,8 @@ let socket = io(),
     config = null,
     Netjester = {
         audioDisabled: false,
-        speakingTimer: null,
         isSpeaking: false,
-        availableVoices: null,
+        availableVoices: [],
         usingLocalSynthesiser: false
     };
 
@@ -18,11 +17,11 @@ Netjester.init = function(msg) {
 
     // This is a full reload so set up audio devices and do DOMshit
     if(!connected) {
-        // fuck it we'll send messages to the server and use native TTS in the meantime
         if(config.Voice.useLocalSynthesiser) {
             Netjester.initializeSystemSpeech();
         } else {
             Netjester.initializeSpeech();
+            Netjester.voicesChangedHandler();
         }
 
         Netjester.initializeAudioInput();
@@ -49,15 +48,16 @@ Netjester.initializeSpeech = function() {
     let voices = window.speechSynthesis.getVoices();
 
     if (!Array.isArray(voices) || !voices.length) {
-        Netjester.log('SpeechSynthesis', 'Waiting for voices...', 1);
-
-        window.speechSynthesis.onvoiceschanged = function(e) {
-            Netjester.initializeSpeech();
-        }
+        Netjester.log('SpeechSynthesis', 'Still waiting for voices...', 1);
     } else {
-        Netjester.log('SpeechSynthesis', 'Loaded ' + voices.length + 'voices', 1);
-
+        Netjester.log('SpeechSynthesis', voices.length + ' voices available', 1);
         this.availableVoices = voices;
+    }
+}
+
+Netjester.voicesChangedHandler = function() {
+    window.speechSynthesis.onvoiceschanged = function(e) {
+        Netjester.initializeSpeech();
     }
 }
 
@@ -152,42 +152,43 @@ Netjester.systemSpeak = function(input) {
 // Chrome has a weird quirk where every 15 seconds of nonstop speech the TTS engine halts without warnings or events firing
 // Behold this hackish workaround - constant timed pause/resumes that are microseconds long
 Netjester.speak = function(input) {
-    let speechTimer = this.speakingTimer;
-    let isSpeaking = this.isSpeaking;
-    let fragment = 1;
+    Netjester.speechFragments = 1;
+    let params = {
+        speed: 0.1,
+        pitch: 0.1
+    };
 
-    if (!isSpeaking) {
+    if (!Netjester.isSpeaking) {
         // Unsticks the voice if something weird happens
-        speechSynthesis.cancel();
+        // speechSynthesis.cancel();
 
-        if (speechTimer) {
-            clearInterval(speechTimer);
+        if (Netjester.speechTimer) {
+            clearInterval(Netjester.speechTimer);
         }
 
-        let msg = new SpeechSynthesisUtterance(input),
-        params = config.Voice.chrome;
+        let msg = new SpeechSynthesisUtterance();
 
         // msg.voice = this.availableVoices[1];
         msg.lang = 'en-US';
-        // msg.voiceURI = 'native';
+        msg.voiceURI = 'native';
         msg.volume = 1; // 0 to 1
         msg.rate = params.speed; // 0.1 to 10
         msg.pitch = params.pitch; //0 to 2
-        // msg.text = input;
+        msg.text = input;
 
-        // msg.onboundary = function(e) {
-        //     Netjester.log('SpeechSynthesisUtterance', 'word boundary at ' + e.elapsedTime);
-        //     if (e.elapsedTime > 13000 * fragment) {
-        //         speechSynthesis.pause();
-        //         fragment++;
-        //     }
-        // };
+        msg.onboundary = function(e) {
+            Netjester.log('SpeechSynthesisUtterance', 'word boundary at ' + e.elapsedTime);
+            if (e.elapsedTime > 13000 * Netjester.speechFragments) {
+                speechSynthesis.pause();
+                Netjester.speechFragments++;
+            }
+        };
     
         msg.onerror = function(e) {
             Netjester.log('SpeechSynthesisUtterance', e.error);
-            speechSynthesis.cancel();
-            isSpeaking = false;
-            clearInterval(speechTimer);
+            // speechSynthesis.cancel();
+            Netjester.isSpeaking = false;
+            clearInterval(Netjester.speechTimer);
         };
 
         msg.onpause = function(e) {
@@ -196,17 +197,17 @@ Netjester.speak = function(input) {
 
         msg.onend = function(e) {
             Netjester.log('SpeechSynthesisUtterance', 'ended at ' + e.elapsedTime);
-            speechSynthesis.cancel();
-            isSpeaking = false;
-            clearInterval(speechTimer);
+            // speechSynthesis.cancel();
+            Netjester.isSpeaking = false;
+            clearInterval(Netjester.speechTimer);
             socket.emit('finishedTalking', 1);
         };
 
         speechSynthesis.speak(msg);
 
-        isSpeaking = true;
+        Netjester.isSpeaking = true;
 
-        speechTimer = setInterval(function(){
+        Netjester.speechTimer = setInterval(function(){
             if (speechSynthesis.paused) {
                 Netjester.log('SpeechSynthesis','resume speech');
                 speechSynthesis.resume();
