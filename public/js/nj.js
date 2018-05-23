@@ -155,10 +155,17 @@ Netjester.systemSpeak = function(input) {
 // Behold this hackish workaround - constant timed pause/resumes that are microseconds long
 Netjester.speak = function(input) {
     Netjester.speechFragments = 1;
-    let params = {
-        speed: 0.1,
-        pitch: 0.1
-    };
+    let params = {};
+
+    // this needs to be a bit more elegant and also not just set at runtime
+    if (config.Voice.randomPitchSpeed) {
+        params.rate = this.randomDecimal(2);
+        params.pitch = this.randomDecimal(2);
+        Netjester.log('SpeechSynthesis', 'Using randomized rate: ' + params.rate + ', pitch: ' + params.pitch);
+    } else {
+        params.rate = config.Voice.rate;
+        params.pitch = config.Voice.pitch;
+    }
 
     if (!Netjester.isSpeaking) {
         // Unsticks the voice if something weird happens
@@ -173,7 +180,7 @@ Netjester.speak = function(input) {
         // msg.voice = this.availableVoices[18];
         msg.lang = 'en-US';
         msg.volume = 1; // 0 to 1
-        msg.rate = params.speed; // 0.1 to 10
+        msg.rate = params.rate; // 0.1 to 10
         msg.pitch = params.pitch; //0 to 2
         msg.text = input;
 
@@ -184,7 +191,7 @@ Netjester.speak = function(input) {
         //         Netjester.speechFragments++;
         //     }
         // };
-    
+
         msg.onerror = function(e) {
             Netjester.log('SpeechSynthesisUtterance', e.error);
             // speechSynthesis.cancel();
@@ -222,6 +229,21 @@ Netjester.speak = function(input) {
         }, 10000);
 
     }
+}
+
+// ONE DAY JAVASCRIPT WILL HAVE A GOOD NATIVE RANDOM NUMBER FACILITY
+// BUT TODAY IS NOT THAT DAY
+Netjester.randomInteger = function(max) {
+    let integer = Math.floor(Math.random() * max + 1);
+    return integer;
+}
+
+// ok like Math.random was designed by someone that looked at binary and thought "yeah good enough just add a decimal"
+// seriously though what the fucking fuck
+// "yeah we need a random number so we'll just make it between 0 and 1 and let god sort it out"
+Netjester.randomDecimal = function(max) {
+    let decimal = (Math.random() * max + 1).toFixed(1);
+    return decimal;
 }
 
 Netjester.log = function(eventName, eventText, forceLog) {
