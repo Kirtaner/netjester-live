@@ -14,21 +14,18 @@
 
     "Voice": {
         "useLocalSynthesizer": 0,
+        "pitch": 1,
+        "speed": 1,
+        "randomPitchSpeed": 1,
         "local": {
             "voices": ["french", "en-scottish", "us-english", "german", "danish", "welsh", "russian"],
             "defaultVoice": 0,
-            "randomVoice": 0,
-            "randomPitchSpeed": 0,
-            "pitch": 1,
-            "speed": 1
+            "randomVoice": 0
         },
-        "chrome": {
+        "google": {
             "voices": [],
             "defaultVoice": 0,
-            "randomVoice": 0,
-            "randomPitchSpeed": 0,
-            "pitch": 1,
-            "speed": 1
+            "randomVoice": 0
         }
     },
 
