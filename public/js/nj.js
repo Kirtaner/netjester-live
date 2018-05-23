@@ -50,7 +50,9 @@ Netjester.initializeSpeech = function() {
     if (!Array.isArray(voices) || !voices.length) {
         Netjester.log('SpeechSynthesis', 'Still waiting for voices...', 1);
     } else {
-        Netjester.log('SpeechSynthesis', voices.length + ' voices available', 1);
+        if (voices.length > this.availableVoices.length) {
+            Netjester.log('SpeechSynthesis', voices.length + ' voices now available', 1);
+        }
         this.availableVoices = voices;
     }
 }
@@ -168,21 +170,20 @@ Netjester.speak = function(input) {
 
         let msg = new SpeechSynthesisUtterance();
 
-        // msg.voice = this.availableVoices[1];
+        // msg.voice = this.availableVoices[18];
         msg.lang = 'en-US';
-        msg.voiceURI = 'native';
         msg.volume = 1; // 0 to 1
         msg.rate = params.speed; // 0.1 to 10
         msg.pitch = params.pitch; //0 to 2
         msg.text = input;
 
-        msg.onboundary = function(e) {
-            Netjester.log('SpeechSynthesisUtterance', 'word boundary at ' + e.elapsedTime);
-            if (e.elapsedTime > 13000 * Netjester.speechFragments) {
-                speechSynthesis.pause();
-                Netjester.speechFragments++;
-            }
-        };
+        // msg.onboundary = function(e) {
+        //     Netjester.log('SpeechSynthesisUtterance', 'word boundary at ' + e.elapsedTime);
+        //     if (e.elapsedTime > 13000 * Netjester.speechFragments) {
+        //         speechSynthesis.pause();
+        //         Netjester.speechFragments++;
+        //     }
+        // };
     
         msg.onerror = function(e) {
             Netjester.log('SpeechSynthesisUtterance', e.error);
@@ -191,9 +192,9 @@ Netjester.speak = function(input) {
             clearInterval(Netjester.speechTimer);
         };
 
-        msg.onpause = function(e) {
-            Netjester.log('SpeechSynthesisUtterance', 'paused at ' + e.elapsedTime);
-        }
+        // msg.onpause = function(e) {
+        //     Netjester.log('SpeechSynthesisUtterance', 'paused at ' + e.elapsedTime);
+        // }
 
         msg.onend = function(e) {
             Netjester.log('SpeechSynthesisUtterance', 'ended at ' + e.elapsedTime);
@@ -207,12 +208,19 @@ Netjester.speak = function(input) {
 
         Netjester.isSpeaking = true;
 
+        // Netjester.speechTimer = setInterval(function(){
+        //     if (speechSynthesis.paused) {
+        //         Netjester.log('SpeechSynthesis','resume speech');
+        //         speechSynthesis.resume();
+        //     }
+        // }, 100);
+
         Netjester.speechTimer = setInterval(function(){
-            if (speechSynthesis.paused) {
-                Netjester.log('SpeechSynthesis','resume speech');
-                speechSynthesis.resume();
-            }
-        }, 100);
+            Netjester.log('SpeechSynthesis','kicking it so it keeps talking');
+            speechSynthesis.pause();
+            speechSynthesis.resume();
+        }, 10000);
+
     }
 }
 
