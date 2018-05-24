@@ -1,3 +1,6 @@
+const _ = require('./public/js/lodash');
+const request = require('request');
+
 NetjesterServer = (io, config) => {
     lastResponse = '';
     clientConfig = {
@@ -6,10 +9,33 @@ NetjesterServer = (io, config) => {
         "Debug": config.get('Server.debug')
     };
 
+    apiRandomReply = client => {
+        let random = null;
+        
+        request.get({
+            url: 'https://api.420chan.org/netjester/random.json',
+            json: true,
+            headers: {'User-Agent': 'Netjester Live'}
+        }, (err, res, data) => {
+            if (err) {
+                console.log('Random Reply Error:', err);
+            } else if (res.statusCode !== 200) {
+                console.log('Random Reply Erroneous Status:', res.statusCode);
+            } else {
+                sendNextResponse(client, data);
+            }
+        });
+
+        return random;
+    };
+
     // Basically just forwards the 420chan Netjester API response to the browser client for TTS
     // Twitch chat -> Phantombot -> 420chan API -> Netjester AI daemon -> back to Phantombot -> Here/channel
-    sendNextResponse = () => {
+    sendNextResponse = (client, reply) => {
+        client.emit('talk', reply.text);
     };
+
+    let throttledNextResponse = _.throttle(apiRandomReply, 6000);
 
     pollChatResponse = () => {
     };
@@ -20,14 +46,14 @@ NetjesterServer = (io, config) => {
     connectClient = (client) => {
         client.emit('connected', clientConfig);
 
-        client.on('disconnect', disconnectClient);
-        client.on('finishedTalking', sendNextResponse);
-        client.on('fallbackToSystemSpeech', systemSpeechFallback);
+        client.on('disconnect', () => { disconnectClient(client) });
+        client.on('finishedTalking', () => { throttledNextResponse(client) });
+        client.on('fallbackToSystemSpeech', () => { systemSpeechFallback() });
 
         console.log("Clients connected: %d", io.engine.clientsCount);
     };
 
-    disconnectClient = (client) => {
+    disconnectClient = client => {
         console.log('Client disconnected');
     };
 

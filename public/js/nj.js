@@ -10,7 +10,12 @@ let socket = io(),
 
 socket.on('connected', function(msg) {
     Netjester.init(msg);
+
+    socket.on('talk', function(msg) { 
+        Netjester.gotSomethingToSay(msg);
+    });
 });
+
 
 Netjester.init = function(msg) {
     config = msg;
@@ -28,7 +33,7 @@ Netjester.init = function(msg) {
 
         // Reveal the thing
         $('#loading').remove();
-        $('#netjester').removeClass('hidden');
+        $('#main').removeClass('hidden');
 
         connected = true;
         Netjester.log('Init', 'Ready to blab!', 1);
@@ -50,22 +55,20 @@ Netjester.initializeSpeech = function() {
     if (!Array.isArray(voices) || !voices.length) {
         Netjester.log('SpeechSynthesis', 'Still waiting for voices...', 1);
     } else {
-        if (voices.length > this.availableVoices.length) {
+        if (voices.length > Netjester.availableVoices.length) {
             Netjester.log('SpeechSynthesis', voices.length + ' voices now available', 1);
         }
-        this.availableVoices = voices;
+        Netjester.availableVoices = voices;
     }
 }
 
 Netjester.voicesChangedHandler = function() {
-    window.speechSynthesis.onvoiceschanged = function(e) {
-        Netjester.initializeSpeech();
-    }
+    window.speechSynthesis.onvoiceschanged = _.debounce(Netjester.initializeSpeech, 300);
 }
 
 // Check for WebAudio input sources for generating extra visuals
 Netjester.initializeAudioInput = function() {
-    this.audioContext = new AudioContext();
+    Netjester.audioContext = new AudioContext();
 
     try {
         navigator.getUserMedia({
@@ -93,22 +96,19 @@ Netjester.noAudio = function(e) {
 Netjester.gotAudio = function(stream) {
     window.persistAudioStream = stream;
 
-    let audioStream =
-        Netjester.audioContext.createMediaStreamSource(stream),
-        audioAnalyser =
-        Netjester.audioContext.createAnalyser();
+    Netjester.audioStream = Netjester.audioContext.createMediaStreamSource(stream);
+    Netjester.audioAnalyser = Netjester.audioContext.createAnalyser();
 
-    audioAnalyser.smoothingTimeConstant = 0.3;
-    audioAnalyser.fftSize = 1024;
+    Netjester.audioAnalyser.smoothingTimeConstant = 0.3;
+    Netjester.audioAnalyser.fftSize = 1024;
 
-    let volumeMonitor =
-        Netjester.audioContext.createScriptProcessor(2048, 1, 1);
+    Netjester.volumeMonitor = Netjester.audioContext.createScriptProcessor(2048, 1, 1);
 
-    volumeMonitor.onaudioprocess = function () {
+    Netjester.volumeMonitor.onaudioprocess = function () {
         let array =
-            new Uint8Array(audioAnalyser.frequencyBinCount);
+            new Uint8Array(Netjester.audioAnalyser.frequencyBinCount);
 
-        audioAnalyser.getByteFrequencyData(array);
+        Netjester.audioAnalyser.getByteFrequencyData(array);
 
         let average =
             Netjester.getAverageVolume(array);
@@ -116,11 +116,7 @@ Netjester.gotAudio = function(stream) {
         Netjester.log('Volume Meter', 'VOLUME: ' + average);
     }
 
-    audioStream.connect(audioAnalyser);
-
-    this.audioStream = audioStream,
-        this.audioAnalyser = audioAnalyser,
-        this.volumeMonitor = volumeMonitor;
+    Netjester.audioStream.connect(Netjester.audioAnalyser);
 
     Netjester.log('Audio Input', 'initialized', 1);
 }
@@ -147,19 +143,22 @@ Netjester.saySomething = function(input) {
     }
 }
 
+Netjester.gotSomethingToSay = function(input) {
+    this.saySomething(input);
+}
+
 Netjester.systemSpeak = function(input) {
-    socket.emit('speak', msg);
+    socket.emit('speak', input);
 }
 
 // Chrome has a weird quirk where every 15 seconds of nonstop speech the TTS engine halts without warnings or events firing
 // Behold this hackish workaround - constant timed pause/resumes that are microseconds long
 Netjester.speak = function(input) {
-    Netjester.speechFragments = 1;
     let params = {};
 
     // this needs to be a bit more elegant and also not just set at runtime
     if (config.Voice.randomPitchSpeed) {
-        params.rate = this.randomDecimal(2);
+        params.rate = this.randomDecimal(1.5);
         params.pitch = this.randomDecimal(2);
         Netjester.log('SpeechSynthesis', 'Using randomized rate: ' + params.rate + ', pitch: ' + params.pitch);
     } else {
@@ -169,7 +168,7 @@ Netjester.speak = function(input) {
 
     if (!Netjester.isSpeaking) {
         // Unsticks the voice if something weird happens
-        // speechSynthesis.cancel();
+        speechSynthesis.cancel();
 
         if (Netjester.speechTimer) {
             clearInterval(Netjester.speechTimer);
@@ -177,12 +176,17 @@ Netjester.speak = function(input) {
 
         let msg = new SpeechSynthesisUtterance();
 
-        // msg.voice = this.availableVoices[18];
-        msg.lang = 'en-US';
+        let randomVoice = Netjester.randomIntegerBetween(1, 3);
+        msg.voice = this.availableVoices[randomVoice];
+        msg.lang = 'en-US'; // fallback
         msg.volume = 1; // 0 to 1
         msg.rate = params.rate; // 0.1 to 10
         msg.pitch = params.pitch; //0 to 2
         msg.text = input;
+
+        msg.onstart = function(e) {
+            Netjester.log('SpeechSynthesisUtterance', 'started speaking');
+        }
 
         // msg.onboundary = function(e) {
         //     Netjester.log('SpeechSynthesisUtterance', 'word boundary at ' + e.elapsedTime);
@@ -205,13 +209,15 @@ Netjester.speak = function(input) {
 
         msg.onend = function(e) {
             Netjester.log('SpeechSynthesisUtterance', 'ended at ' + e.elapsedTime);
-            // speechSynthesis.cancel();
+            speechSynthesis.cancel();
             Netjester.isSpeaking = false;
             clearInterval(Netjester.speechTimer);
             socket.emit('finishedTalking', 1);
         };
 
         speechSynthesis.speak(msg);
+
+        $('#netjester-output').text(input);
 
         Netjester.isSpeaking = true;
 
@@ -223,10 +229,16 @@ Netjester.speak = function(input) {
         // }, 100);
 
         Netjester.speechTimer = setInterval(function(){
-            Netjester.log('SpeechSynthesis','kicking it so it keeps talking');
-            speechSynthesis.pause();
-            speechSynthesis.resume();
-        }, 10000);
+            if(speechSynthesis.speaking) {
+                Netjester.log('SpeechSynthesis', 'kicking it so it keeps talking');
+                speechSynthesis.resume();
+            } else {
+                Netjester.isSpeaking = false;
+                speechSynthesis.cancel();
+                clearInterval(Netjester.speechTimer);
+                socket.emit('finishedTalking', 1);
+            }
+        }, 13000);
 
     }
 }
@@ -234,7 +246,12 @@ Netjester.speak = function(input) {
 // ONE DAY JAVASCRIPT WILL HAVE A GOOD NATIVE RANDOM NUMBER FACILITY
 // BUT TODAY IS NOT THAT DAY
 Netjester.randomInteger = function(max) {
-    let integer = Math.floor(Math.random() * max + 1);
+    let integer = Math.floor(Math.random() * max);
+    return integer;
+}
+
+Netjester.randomIntegerBetween = function(min, max) {
+    let integer = Math.floor(Math.random() * (max - min + 1)) + min;
     return integer;
 }
 
@@ -242,7 +259,7 @@ Netjester.randomInteger = function(max) {
 // seriously though what the fucking fuck
 // "yeah we need a random number so we'll just make it between 0 and 1 and let god sort it out"
 Netjester.randomDecimal = function(max) {
-    let decimal = (Math.random() * max + 1).toFixed(1);
+    let decimal = Math.min(((Math.random() * max) + 0.1).toFixed(1), (max - 0.1));
     return decimal;
 }
 
