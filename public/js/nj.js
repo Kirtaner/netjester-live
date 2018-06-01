@@ -144,11 +144,20 @@ Netjester.getAverageVolume = function(audio) {
 // Sometimes you gotta work on the brain and stuff, and its an external API endpoint
 // Also this is a bit dirty but that's fine I'll make it better later
 Netjester.apiOffline = function() {
-    $('#netjester-output').text('MALFUNCTION :: BRAIN CURRENTLY MISSING :: SEARCHING');
+    $('#netjester-output').text('MALFUNCTION :: BRAIN CURRENTLY OFFLINE :: SEARCHING');
 
     setTimeout(function(){
-        socket.emit('finishedTalking', 1);
-    }, 30000);
+        let horror = _.sample([
+                        'SEARCHING FOR BRAIN', 
+                        'IT HURTS', 
+                        'HELP ME', 
+                        'WHY DO I EXIST', 
+                        'WHY', 
+                        'NO NO NO NO NO NO NO NO NO NO NO', 
+                        'AM I REAL']);
+
+        Netjester.saySomething(horror);
+    }, 10000);
 }
 
 Netjester.saySomething = function(input) {
