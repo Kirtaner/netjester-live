@@ -32,7 +32,11 @@ NetjesterServer = (io, config) => {
     // Basically just forwards the 420chan Netjester API response to the browser client for TTS
     // Twitch chat -> Phantombot -> 420chan API -> Netjester AI daemon -> back to Phantombot -> Here/channel
     sendNextResponse = (client, reply) => {
-        client.emit('talk', reply.text);
+        if (reply.offline) {
+            client.emit('offline', 1);
+        } else {
+            client.emit('talk', reply.text);
+        }
     };
 
     let throttledNextResponse = _.throttle(apiRandomReply, 6000);
@@ -43,7 +47,7 @@ NetjesterServer = (io, config) => {
     systemSpeechFallback = () => {
     };
 
-    connectClient = (client) => {
+    connectClient = client => {
         client.emit('connected', clientConfig);
 
         client.on('disconnect', () => { disconnectClient(client) });

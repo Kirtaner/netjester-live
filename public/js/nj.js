@@ -14,8 +14,13 @@ socket.on('connected', function(msg) {
     socket.on('talk', function(msg) { 
         Netjester.gotSomethingToSay(msg);
     });
-});
 
+    socket.on('offline', function(dead) {
+        if (dead) {
+            Netjester.apiOffline();
+        }
+    });
+});
 
 Netjester.init = function(msg) {
     config = msg;
@@ -133,6 +138,17 @@ Netjester.getAverageVolume = function(audio) {
 
     average = values / frequencyCount;
     return average;
+}
+
+// API status handlers, pause normal activity and send periodic heartbeats until it's alive again
+// Sometimes you gotta work on the brain and stuff, and its an external API endpoint
+// Also this is a bit dirty but that's fine I'll make it better later
+Netjester.apiOffline = function() {
+    $('#netjester-output').text('MALFUNCTION :: BRAIN CURRENTLY MISSING :: SEARCHING');
+
+    setTimeout(function(){
+        socket.emit('finishedTalking', 1);
+    }, 30000);
 }
 
 Netjester.saySomething = function(input) {
