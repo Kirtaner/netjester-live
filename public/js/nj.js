@@ -11,7 +11,7 @@ let socket = io(),
 socket.on('connected', function(msg) {
     Netjester.init(msg);
 
-    socket.on('talk', function(msg) { 
+    socket.on('talk', function(msg) {
         Netjester.gotSomethingToSay(msg);
     });
 
@@ -104,24 +104,12 @@ Netjester.gotAudio = function(stream) {
     Netjester.audioStream = Netjester.audioContext.createMediaStreamSource(stream);
     Netjester.audioAnalyser = Netjester.audioContext.createAnalyser();
 
-    Netjester.audioAnalyser.smoothingTimeConstant = 0.3;
-    Netjester.audioAnalyser.fftSize = 1024;
+    Netjester.audioAnalyser.smoothingTimeConstant = 0.2;
+    Netjester.audioAnalyser.fftSize = 512;
 
-    Netjester.volumeMonitor = Netjester.audioContext.createScriptProcessor(4096, 1, 1);
+    Netjester.volumeMonitor = Netjester.audioContext.createScriptProcessor(512, 1, 1);
 
-    Netjester.volumeMonitor.onaudioprocess = function () {
-        let array =
-            new Uint8Array(Netjester.audioAnalyser.frequencyBinCount);
-
-        Netjester.audioAnalyser.getByteFrequencyData(array);
-
-        let average =
-            Netjester.getAverageVolume(array);
-
-        if (average > 0) {
-            Netjester.log('Audio Input', 'VOLUME: ' + average);
-        }
-    }
+    Netjester.volumeMonitor.onaudioprocess = Netjester.volumeHandler;
 
     // Hook up the arcane virtual WebAudio cables
     Netjester.volumeMonitor.connect(Netjester.audioContext.destination);
@@ -129,6 +117,23 @@ Netjester.gotAudio = function(stream) {
     Netjester.audioStream.connect(Netjester.audioAnalyser);
 
     Netjester.log('Audio Input', 'initialized', 1);
+}
+
+Netjester.volumeHandler = function () {
+    let array = new Uint8Array(Netjester.audioAnalyser.frequencyBinCount);
+
+    Netjester.audioAnalyser.getByteFrequencyData(array);
+
+    let average = Netjester.getAverageVolume(array);
+
+    if (average > 0) {
+        let rounded = Math.round(average * 1.3);
+        let clipped = Math.min((rounded / 100 + 0.5).toFixed(2), 1);
+        $('#eye').fadeTo(0, clipped);
+        // Netjester.log('Audio Input', 'VOLUME: ' + clipped);
+    } else {
+        $('#eye').fadeTo(0, 0.3);
+    }
 }
 
 Netjester.getAverageVolume = function(audio) {
@@ -153,12 +158,12 @@ Netjester.apiOffline = function() {
 
     setTimeout(function(){
         let horror = _.sample([
-                        'SEARCHING FOR BRAIN', 
-                        'IT HURTS', 
-                        'HELP ME', 
-                        'WHY DO I EXIST', 
-                        'WHY', 
-                        'NO NO NO NO NO NO NO NO NO NO NO', 
+                        'SEARCHING FOR BRAIN',
+                        'IT HURTS',
+                        'HELP ME',
+                        'WHY DO I EXIST',
+                        'WHY',
+                        'NO NO NO NO NO NO NO NO NO NO NO',
                         'AM I REAL']);
 
         Netjester.saySomething(horror);
