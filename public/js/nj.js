@@ -107,7 +107,7 @@ Netjester.gotAudio = function(stream) {
     Netjester.audioAnalyser.smoothingTimeConstant = 0.3;
     Netjester.audioAnalyser.fftSize = 1024;
 
-    Netjester.volumeMonitor = Netjester.audioContext.createScriptProcessor(2048, 1, 1);
+    Netjester.volumeMonitor = Netjester.audioContext.createScriptProcessor(4096, 1, 1);
 
     Netjester.volumeMonitor.onaudioprocess = function () {
         let array =
@@ -118,9 +118,14 @@ Netjester.gotAudio = function(stream) {
         let average =
             Netjester.getAverageVolume(array);
 
-        Netjester.log('Volume Meter', 'VOLUME: ' + average);
+        if (average > 0) {
+            Netjester.log('Volume Meter', 'VOLUME: ' + average);
+        }
     }
 
+    // Hook up the arcane virtual WebAudio cables
+    Netjester.volumeMonitor.connect(Netjester.audioContext.destination);
+    Netjester.audioAnalyser.connect(Netjester.volumeMonitor);
     Netjester.audioStream.connect(Netjester.audioAnalyser);
 
     Netjester.log('Audio Input', 'initialized', 1);
