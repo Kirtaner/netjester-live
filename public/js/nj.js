@@ -49,7 +49,7 @@ Netjester.init = function(msg) {
 }
 
 Netjester.initializeSystemSpeech = function() {
-    Netjester.log('System Speech', 'Using system speech with daemon "' + config.Voice.local.daemon + '"', 1);
+    Netjester.log('Speech Synthesis', 'Using system speech with daemon "' + config.Voice.local.daemon + '"', 1);
     this.availableVoices = config.Voice.local.voices;
     this.usingLocalSynthesiser = true;
 }
@@ -58,10 +58,10 @@ Netjester.initializeSpeech = function() {
     let voices = window.speechSynthesis.getVoices();
 
     if (!Array.isArray(voices) || !voices.length) {
-        Netjester.log('SpeechSynthesis', 'Still waiting for voices...', 1);
+        Netjester.log('Speech Synthesis', 'Still waiting for voices...', 1);
     } else {
         if (voices.length > Netjester.availableVoices.length) {
-            Netjester.log('SpeechSynthesis', voices.length + ' voices now available', 1);
+            Netjester.log('Speech Synthesis', voices.length + ' voices now available', 1);
         }
         Netjester.availableVoices = voices;
     }
@@ -119,7 +119,7 @@ Netjester.gotAudio = function(stream) {
             Netjester.getAverageVolume(array);
 
         if (average > 0) {
-            Netjester.log('Volume Meter', 'VOLUME: ' + average);
+            Netjester.log('Audio Input', 'VOLUME: ' + average);
         }
     }
 
@@ -190,7 +190,7 @@ Netjester.speak = function(input) {
     if (config.Voice.randomPitchSpeed) {
         params.rate = this.randomDecimal(1.5);
         params.pitch = this.randomDecimal(2);
-        Netjester.log('SpeechSynthesis', 'Using randomized rate: ' + params.rate + ', pitch: ' + params.pitch);
+        Netjester.log('Speech Synthesis', 'Using randomized rate: ' + params.rate + ', pitch: ' + params.pitch);
     } else {
         params.rate = config.Voice.rate;
         params.pitch = config.Voice.pitch;
@@ -215,7 +215,7 @@ Netjester.speak = function(input) {
         msg.text = input;
 
         msg.onstart = function(e) {
-            Netjester.log('SpeechSynthesisUtterance', 'started speaking');
+            Netjester.log('Speech Synthesis', 'started speaking');
         }
 
         // msg.onboundary = function(e) {
@@ -227,7 +227,7 @@ Netjester.speak = function(input) {
         // };
 
         msg.onerror = function(e) {
-            Netjester.log('SpeechSynthesisUtterance', e.error);
+            Netjester.log('Speech Synthesis', e.error);
             // speechSynthesis.cancel();
             Netjester.isSpeaking = false;
             clearInterval(Netjester.speechTimer);
@@ -238,7 +238,7 @@ Netjester.speak = function(input) {
         // }
 
         msg.onend = function(e) {
-            Netjester.log('SpeechSynthesisUtterance', 'ended at ' + e.elapsedTime);
+            Netjester.log('Speech Synthesis', 'ended at ' + e.elapsedTime);
             speechSynthesis.cancel();
             Netjester.isSpeaking = false;
             clearInterval(Netjester.speechTimer);
@@ -260,7 +260,7 @@ Netjester.speak = function(input) {
 
         Netjester.speechTimer = setInterval(function(){
             if(speechSynthesis.speaking) {
-                Netjester.log('SpeechSynthesis', 'kicking it so it keeps talking');
+                Netjester.log('Speech Synthesis', 'kicking it so it keeps talking');
                 speechSynthesis.resume();
             } else {
                 Netjester.isSpeaking = false;
