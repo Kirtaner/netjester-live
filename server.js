@@ -10,10 +10,15 @@ dotenv.load();
 const config = require('config');
 const host = config.get('Server.address') || '0.0.0.0';
 const port = config.get('Server.port') || 3000;
+const certificate = {
+    cert: fs.readFileSync('./ssl/fullchain.pem'),
+    key: fs.readFileSync('./ssl/privkey.pem'),
+    passphrase: '0420'
+};
 
 // Bind express and Socket.IO
 const app = express();
-const server = require('http').createServer(app);
+const server = require('https').createServer(certificate, app);
 const sio = require('socket.io').listen(server);
 
 // Here be the client library that will someday enslave us all
